@@ -1,0 +1,20 @@
+{
+  "name": "數學幾何與函數圖形教材 App",
+  "short_name": "數學教材",
+  "description": "互動畫布、教案解析與隨堂測驗的可安裝數學教材 App",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef2f7",
+  "theme_color": "#172033",
+  "lang": "zh-Hant-TW",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

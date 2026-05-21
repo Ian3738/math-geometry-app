@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#172033">
+  <meta name="description" content="可安裝的數學幾何與函數圖形教材 App">
+  <title>數學幾何教材 App</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d8dee8;
+      --panel: #ffffff;
+      --surface: #eef2f7;
+      --brand: #4f46e5;
+      --brand-ink: #eef2ff;
+      --accent: #dc2626;
+      --ok: #047857;
+      --shadow: 0 18px 45px rgba(15, 23, 42, .09);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background: var(--surface);
+      color: var(--ink);
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      padding: 18px clamp(16px, 3vw, 32px);
+      background: var(--ink);
+      color: white;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .brand { display: flex; gap: 12px; align-items: center; min-width: 0; }
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: var(--brand);
+      box-shadow: 0 10px 25px rgba(79,70,229,.35);
+      font-weight: 800;
+    }
+    .brand h1 { margin: 0; font-size: clamp(18px, 2vw, 24px); line-height: 1.15; }
+    .brand p { margin: 3px 0 0; color: #b7c2d6; font-size: 13px; }
+    .top-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 10px 13px;
+      color: var(--ink);
+      background: white;
+      font-weight: 750;
+      font-size: 13px;
+      min-height: 40px;
+    }
+    .btn.primary { background: var(--brand); color: white; }
+    .btn.dark { background: #111827; color: white; border-color: rgba(255,255,255,.14); }
+    .btn.ghost { background: rgba(255,255,255,.08); color: white; border-color: rgba(255,255,255,.12); }
+    .btn.soft { background: #eef2ff; color: #3730a3; border-color: #d8ddff; }
+    .btn.danger { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    main {
+      width: min(1540px, 100%);
+      margin: 0 auto;
+      padding: clamp(14px, 2vw, 28px);
+      display: grid;
+      grid-template-columns: minmax(300px, 430px) 1fr;
+      gap: 20px;
+      align-items: start;
+      flex: 1;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+    .sidebar { padding: 20px; display: grid; gap: 18px; }
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #edf0f5;
+    }
+    .section-title h2, .workspace-title h2 { margin: 0; font-size: 18px; }
+    .field { display: grid; gap: 8px; }
+    label { font-size: 13px; font-weight: 800; color: #344054; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f8fafc;
+      color: var(--ink);
+      padding: 11px 12px;
+      outline: none;
+    }
+    textarea { min-height: 92px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(79,70,229,.13); background: white; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      border: 1px solid #d8ddff;
+      background: #eef2ff;
+      color: #3730a3;
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .style-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .style-card {
+      border: 2px solid var(--line);
+      background: #fbfcff;
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      gap: 5px;
+      text-align: left;
+    }
+    .style-card[aria-pressed="true"] { border-color: var(--brand); background: #eef2ff; }
+    .style-card strong { font-size: 13px; }
+    .style-card span { font-size: 11px; color: var(--muted); }
+
+    .workspace { display: grid; gap: 14px; }
+    .tabs {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px;
+    }
+    .tab-list, .toolbar, .export-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .tab {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #f1f5f9;
+      color: #475467;
+      font-weight: 850;
+      font-size: 13px;
+    }
+    .tab.active { background: var(--brand); color: white; }
+    .workspace-card { padding: 16px; display: grid; gap: 14px; }
+    .toolbar {
+      justify-content: space-between;
+      background: #f8fafc;
+      border: 1px solid #edf0f5;
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .toolbar small { color: var(--muted); font-weight: 800; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+    .canvas-box {
+      position: relative;
+      min-height: 520px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: white;
+      touch-action: none;
+      user-select: none;
+    }
+    #graphic, #drawLayer, #labelLayer { position: absolute; inset: 0; width: 100%; height: 100%; }
+    #graphic { display: grid; place-items: center; padding: 18px; }
+    #drawLayer { z-index: 4; }
+    #labelLayer { z-index: 5; pointer-events: none; }
+    .label-pill {
+      position: absolute;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      max-width: min(330px, 46vw);
+      padding: 7px 10px;
+      border-radius: 9px;
+      border: 1px solid #334155;
+      background: rgba(15,23,42,.94);
+      color: white;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: grab;
+      pointer-events: auto;
+      box-shadow: 0 12px 28px rgba(15,23,42,.18);
+    }
+    .label-pill.light { background: rgba(255,255,255,.96); color: #172033; border-color: #cbd5e1; }
+    .label-pill.indigo { background: rgba(49,46,129,.96); color: #eef2ff; border-color: #818cf8; }
+    .label-pill:active { cursor: grabbing; }
+    .math {
+      font-family: "Times New Roman", "Cambria Math", serif;
+      font-style: italic;
+      letter-spacing: .01em;
+      white-space: nowrap;
+    }
+    .frac {
+      display: inline-grid;
+      grid-template-rows: auto auto;
+      align-items: center;
+      vertical-align: middle;
+      line-height: 1;
+      font-size: .86em;
+      margin: 0 .08em;
+      text-align: center;
+    }
+    .frac span:first-child {
+      border-bottom: 1px solid currentColor;
+      padding: 0 .18em .08em;
+    }
+    .frac span:last-child { padding-top: .08em; }
+    .badge {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--brand);
+      color: white;
+      font-size: 10px;
+      flex: 0 0 auto;
+    }
+    .content-page { padding: 24px; }
+    .workspace-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #edf0f5;
+    }
+    .pill { border-radius: 999px; background: #eef2ff; color: #3730a3; padding: 7px 10px; font-size: 12px; font-weight: 850; }
+    .lesson-grid { display: grid; gap: 15px; margin-top: 18px; }
+    .lesson-grid h3 { margin: 0; font-size: 16px; }
+    .lesson-grid p, .lesson-grid li { color: #475467; line-height: 1.75; font-size: 14px; }
+    .box {
+      border: 1px solid #e6eaf2;
+      border-radius: 12px;
+      background: #f8fafc;
+      padding: 14px;
+    }
+    .qa { display: grid; gap: 12px; margin-top: 18px; }
+    .question { border: 1px solid #e6eaf2; border-radius: 12px; background: #fbfcff; padding: 14px; }
+    .question h3 { margin: 0 0 8px; font-size: 15px; }
+    .options { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-top: 10px; }
+    .option { border: 1px solid #dbe2ed; background: white; border-radius: 9px; padding: 9px; font-size: 13px; }
+    .answer-space { margin-top: 10px; min-height: 96px; border: 1px dashed #b7c2d6; border-radius: 10px; background: white; }
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 20;
+      background: #111827;
+      color: white;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: .2s ease;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .hidden { display: none !important; }
+    footer { text-align: center; color: #667085; font-size: 12px; padding: 22px; }
+
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; }
+      .canvas-box { min-height: 440px; }
+    }
+    @media (max-width: 640px) {
+      .topbar { display: grid; }
+      .style-grid, .options { grid-template-columns: 1fr; }
+      .tab, .btn { width: 100%; justify-content: center; }
+      .tab-list, .export-actions, .toolbar, .top-actions { width: 100%; }
+      .canvas-box { min-height: 380px; }
+      .label-pill { max-width: 78vw; }
+    }
+    @media print {
+      .topbar, .sidebar, .tabs, .toolbar, footer, .toast { display: none !important; }
+      main { display: block; padding: 0; }
+      .panel { box-shadow: none; border: 0; }
+      .canvas-box { page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">∑</div>
+        <div>
+          <h1>數學幾何與函數圖形教材 App</h1>
+          <p>互動畫布、教案解析、隨堂測驗與可安裝 PWA</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="btn ghost" id="installBtn" hidden>安裝 App</button>
+        <button class="btn dark" id="printBtn">列印教材</button>
+      </div>
+    </header>
+
+    <main>
+      <aside class="panel sidebar" aria-label="教材生成設定">
+        <div class="section-title">
+          <h2>教材生成設定</h2>
+          <span class="pill" id="modePill">展示模式</span>
+        </div>
+
+        <div class="field">
+          <label for="subject">數學單元 / 幾何概念</label>
+          <input id="subject" placeholder="例如：畢氏定理、三角函數、拋物線" value="畢氏定理">
+          <div class="chips" aria-label="快速選取">
+            <button class="chip" data-preset="pythagoras">畢氏定理</button>
+            <button class="chip" data-preset="circle">三角函數單位圓</button>
+            <button class="chip" data-preset="parabola">拋物線圖形</button>
+            <button class="chip" data-preset="normal">常態分配</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>幾何圖形風格</label>
+          <div class="style-grid">
+            <button class="style-card" data-style="line" aria-pressed="true"><strong>黑白線稿</strong><span>適合印刷與考卷</span></button>
+            <button class="style-card" data-style="color" aria-pressed="false"><strong>彩色插圖</strong><span>對比清楚，適合投影</span></button>
+            <button class="style-card" data-style="grid" aria-pressed="false"><strong>坐標格線</strong><span>刻度與定位明確</span></button>
+            <button class="style-card" data-style="board" aria-pressed="false"><strong>黑板粉筆</strong><span>課堂板書氛圍</span></button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="audience">適合對象 / 學層</label>
+          <select id="audience">
+            <option>國民小學</option>
+            <option selected>國民中學</option>
+            <option>高級中學</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="notes">補充說明與教學重點</label>
+          <textarea id="notes" placeholder="例如：請標出 a² + b² = c² 的面積關係，並使用 3-4-5 直角三角形。"></textarea>
+        </div>
+
+        <button class="btn primary" id="generateBtn">生成教材</button>
+      </aside>
+
+      <section class="workspace" aria-label="教材工作區">
+        <div class="panel tabs">
+          <div class="tab-list" role="tablist" aria-label="工作區分頁">
+            <button class="tab active" data-tab="canvas" role="tab">1. 互動畫布</button>
+            <button class="tab" data-tab="lesson" role="tab">2. 教案解析</button>
+            <button class="tab" data-tab="worksheet" role="tab">3. 隨堂測驗</button>
+          </div>
+          <div class="export-actions">
+            <button class="btn soft" id="exportPngBtn">匯出 PNG</button>
+            <button class="btn soft" id="copyStateBtn">複製教材 JSON</button>
+          </div>
+        </div>
+
+        <section class="panel workspace-card" id="pageCanvas">
+          <div class="toolbar">
+            <div class="toolbar">
+              <small>繪圖工具</small>
+              <button class="btn soft" data-tool="select">選取/搬移</button>
+              <button class="btn" data-tool="arrow">標示箭頭</button>
+              <button class="btn" id="addLabelBtn">新增標籤</button>
+              <button class="btn danger" id="clearBtn">清除輔助線</button>
+            </div>
+            <button class="btn" id="themeBtn">標籤配色：深藍</button>
+            <button class="btn" id="diagramTextBtn">底圖文字：關</button>
+          </div>
+          <p class="hint">提示：拖曳標籤可調整位置，雙擊標籤可修改文字；切換到「標示箭頭」後可在圖上拖曳畫出輔助線。</p>
+          <div class="canvas-box" id="canvasBox">
+            <div id="graphic"></div>
+            <canvas id="drawLayer"></canvas>
+            <div id="labelLayer"></div>
+          </div>
+        </section>
+
+        <section class="panel content-page hidden" id="pageLesson">
+          <div class="workspace-title">
+            <h2>幾何概念解析教案</h2>
+            <span class="pill" id="audiencePill">國民中學</span>
+          </div>
+          <div class="lesson-grid" id="lessonContent"></div>
+        </section>
+
+        <section class="panel content-page hidden" id="pageWorksheet">
+          <div class="workspace-title">
+            <h2>隨堂測驗單</h2>
+            <span class="pill">堂前測驗 / 觀念檢證</span>
+          </div>
+          <div class="qa" id="worksheetContent"></div>
+        </section>
+      </section>
+    </main>
+
+    <footer>© 2026 數學學科教學研發中心。此版本已封裝為可安裝的 PWA App。</footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const app = {
+      preset: "pythagoras",
+      style: "line",
+      tool: "select",
+      labelTheme: "dark",
+      labels: [],
+      arrows: [],
+      dragLabel: null,
+      drawing: null,
+      installPrompt: null,
+      showDiagramText: false
+    };
+
+    const presets = {
+      pythagoras: {
+        title: "畢氏定理",
+        subtitle: "直角三角形三邊平方關係",
+        labels: [
+          ["直角邊 $a=3$", 28, 56], ["直角邊 $b=4$", 48, 69], ["斜邊 $c=5$", 56, 45],
+          ["$a^2=9$", 13, 47], ["$b^2=16$", 42, 86], ["$c^2=25$", 68, 27]
+        ],
+        arrows: [[30,58,34,58],[48,78,48,70],[66,30,57,41]],
+        objective: "能由直角三角形三邊所作正方形的面積關係，說明並使用 $a^2+b^2=c^2$。",
+        principle: "在直角三角形 $\\triangle ABC$ 中，若 $\\angle C=90^\\circ$，兩直角邊為 $a,b$，斜邊為 $c$，則 $a^2+b^2=c^2$。課本圖像通常以三邊向外作正方形表示：直角邊正方形面積和等於斜邊正方形面積。",
+        steps: ["辨認斜邊必為直角對邊，並確認 $c$ 是最大邊。", "以 $3$、$4$、$5$ 直角三角形檢查 $3^2+4^2=5^2$。", "把邊長平方解讀為正方形面積，連結代數式與幾何圖形。"],
+        misconception: "不能把畢氏定理套用到任意三角形；若不是直角三角形，需改用餘弦定理。",
+        questions: [
+          ["填空", "直角三角形兩直角邊為 $5$ 與 $12$，斜邊 $c=\\sqrt{5^2+12^2}=$ ______。"],
+          ["選擇", "坐標平面上 $P(3,-4)$ 到原點 $O(0,0)$ 的距離為？", ["3", "4", "5", "7"]],
+          ["問答", "請以「三邊向外作正方形」的面積關係，說明 $a^2+b^2=c^2$ 的意義。"]
+        ]
+      },
+      circle: {
+        title: "三角函數與單位圓",
+        subtitle: "任意角三角函數的坐標定義",
+        labels: [
+          ["單位圓 $x^2+y^2=1$", 14, 15], ["$P(\\cos\\theta,\\sin\\theta)$", 62, 23],
+          ["$\\cos\\theta$: 橫坐標", 40, 64], ["$\\sin\\theta$: 縱坐標", 68, 41],
+          ["$\\theta=30^\\circ$", 54, 50], ["$\\tan\\theta=\\frac{\\sin\\theta}{\\cos\\theta}$", 55, 83]
+        ],
+        arrows: [[23,18,35,26],[63,27,59,33],[47,64,51,58],[68,43,61,42]],
+        objective: "能以單位圓上的點 $P(\\cos\\theta,\\sin\\theta)$ 定義任意角的正弦與餘弦。",
+        principle: "半徑為 $1$ 的圓稱為單位圓，標準方程式為 $x^2+y^2=1$。角 $\\theta$ 的終邊與單位圓交於 $P(x,y)$ 時，定義 $x=\\cos\\theta$、$y=\\sin\\theta$，因此 $\\sin^2\\theta+\\cos^2\\theta=1$。",
+        steps: ["先標出原點 $O$、坐標軸與半徑 $OP=1$。", "將 $P$ 垂直投影到 $x$ 軸，讀出 $\\cos\\theta$ 與 $\\sin\\theta$。", "利用圓方程式推導平方關係。"],
+        misconception: "$\\sin\\theta$ 與 $\\cos\\theta$ 是坐標值，不是線段名稱；它們的取值範圍皆為 $[-1,1]$。",
+        questions: [
+          ["填空", "若 $\\theta$ 在第三象限，則 $\\sin\\theta$ 為 ______，$\\cos\\theta$ 為 ______。"],
+          ["選擇", "若 $\\sin\\theta=\\frac{3}{5}$ 且 $\\theta$ 在第二象限，$\\cos\\theta$ 為？", ["$\\frac{4}{5}$", "$-\\frac{4}{5}$", "$\\frac{3}{4}$", "$-\\frac{3}{4}$"]],
+          ["問答", "請由 $x^2+y^2=1$ 說明 $\\sin^2\\theta+\\cos^2\\theta=1$。"]
+        ]
+      },
+      parabola: {
+        title: "二次函數與拋物線",
+        subtitle: "頂點式、對稱軸與截距",
+        labels: [
+          ["函數 $y=(x-1)^2-4$", 61, 18], ["頂點 $V(1,-4)$", 47, 78],
+          ["對稱軸 $x=1$", 17, 32], ["$x$ 截距 $(-1,0),(3,0)$", 17, 68],
+          ["$y$ 截距 $(0,-3)$", 55, 60], ["一般式 $y=ax^2+bx+c$", 58, 86]
+        ],
+        arrows: [[62,22,55,34],[48,76,50,67],[26,34,50,34],[27,68,39,63]],
+        objective: "能從二次函數圖形讀出頂點、對稱軸、截距，並連結頂點式與一般式。",
+        principle: "二次函數 $y=ax^2+bx+c$ 的圖形為拋物線。若寫成頂點式 $y=a(x-h)^2+k$，則頂點為 $V(h,k)$，對稱軸為 $x=h$。圖中示例 $y=(x-1)^2-4$ 的頂點為 $V(1,-4)$，且與 $x$ 軸交於 $(-1,0)$、$(3,0)$。",
+        steps: ["先找頂點與對稱軸，建立圖形中心。", "由 $y=0$ 解出 $x$ 截距，並利用對稱性檢查。", "由 $x=0$ 求 $y$ 截距，和圖上位置比對。"],
+        misconception: "$a$ 越大不代表開口越大；$|a|$ 越大，拋物線越窄。",
+        questions: [
+          ["填空", "函數 $y=(x-3)^2+5$ 的頂點為 ______，對稱軸為 ______。"],
+          ["選擇", "$y=x^2-4x+3$ 的對稱軸為？", ["$x=2$", "$x=-2$", "$x=4$", "$x=-4$"]],
+          ["問答", "若判別式 $D=b^2-4ac<0$ 且 $a>0$，請說明圖形與 $x$ 軸的關係。"]
+        ]
+      },
+      normal: {
+        title: "常態分配曲線",
+        subtitle: "平均值、標準差與經驗法則",
+        labels: [
+          ["平均值 $\\mu$", 42, 16], ["拐點 $\\mu\\pm\\sigma$", 53, 31],
+          ["$68.2\\%$: $\\mu\\pm\\sigma$", 18, 49], ["$95.4\\%$: $\\mu\\pm2\\sigma$", 18, 69],
+          ["密度函數 $f(x)$", 66, 24], ["總面積 $=1$", 59, 84]
+        ],
+        arrows: [[45,20,45,48],[55,33,50,43],[31,52,40,52],[66,27,58,34]],
+        objective: "能讀懂常態分配圖中的平均值 $\\mu$、標準差 $\\sigma$ 與 $68$-$95$-$99.7$ 經驗法則。",
+        principle: "常態分配曲線左右對稱，中心為平均值 $\\mu$。標準差 $\\sigma$ 控制分散程度；約 $68.2\\%$ 的資料落在 $\\mu\\pm\\sigma$，約 $95.4\\%$ 落在 $\\mu\\pm2\\sigma$，約 $99.7\\%$ 落在 $\\mu\\pm3\\sigma$。",
+        steps: ["先標出中心線 $x=\\mu$，確認左右對稱。", "依序標出 $\\mu\\pm\\sigma$、$\\mu\\pm2\\sigma$、$\\mu\\pm3\\sigma$。", "把曲線下面積解讀為機率。"],
+        misconception: "曲線尾端只會趨近於橫軸，不會與橫軸相交。",
+        questions: [
+          ["填空", "$\\mu\\pm2\\sigma$ 內約包含全部資料的 ______%。"],
+          ["選擇", "平均 $60$、標準差 $10$，成績高於 $70$ 約佔？", ["16%", "32%", "50%", "84%"]],
+          ["問答", "為什麼大型測驗常用常態分配檢視成績分布？"]
+        ]
+      }
+    };
+
+    const qs = (s, root = document) => root.querySelector(s);
+    const qsa = (s, root = document) => [...root.querySelectorAll(s)];
+    const canvas = qs("#drawLayer");
+    const ctx = canvas.getContext("2d");
+
+    function toast(message) {
+      const el = qs("#toast");
+      el.textContent = message;
+      el.classList.add("show");
+      clearTimeout(el._timer);
+      el._timer = setTimeout(() => el.classList.remove("show"), 2600);
+    }
+
+    function escapeHTML(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function mathText(text) {
+      return escapeHTML(text)
+        .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "<span class=\"frac\"><span>$1</span><span>$2</span></span>")
+        .replace(/\\sqrt\{([^{}]+)\}/g, "√($1)")
+        .replace(/\\theta/g, "θ")
+        .replace(/\\mu/g, "μ")
+        .replace(/\\sigma/g, "σ")
+        .replace(/\\triangle/g, "△")
+        .replace(/\\angle/g, "∠")
+        .replace(/\\cos/g, "cos")
+        .replace(/\\sin/g, "sin")
+        .replace(/\\tan/g, "tan")
+        .replace(/\\pm/g, "±")
+        .replace(/\\%/g, "%")
+        .replace(/\\circ/g, "°")
+        .replace(/\^2/g, "<sup>2</sup>")
+        .replace(/\^3/g, "<sup>3</sup>")
+        .replace(/\$(.*?)\$/g, "<span class=\"math\">$1</span>");
+    }
+
+    function plainMath(text) {
+      return String(text)
+        .replace(/\$/g, "")
+        .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "$1/$2")
+        .replace(/\\sqrt\{([^{}]+)\}/g, "√($1)")
+        .replace(/\\theta/g, "θ")
+        .replace(/\\mu/g, "μ")
+        .replace(/\\sigma/g, "σ")
+        .replace(/\\triangle/g, "△")
+        .replace(/\\angle/g, "∠")
+        .replace(/\\cos/g, "cos")
+        .replace(/\\sin/g, "sin")
+        .replace(/\\tan/g, "tan")
+        .replace(/\\pm/g, "±")
+        .replace(/\\%/g, "%")
+        .replace(/\\circ/g, "°")
+        .replace(/\^2/g, "²")
+        .replace(/\^3/g, "³");
+    }
+
+    function setPreset(key) {
+      const data = presets[key];
+      app.preset = key;
+      qs("#subject").value = data.title;
+      app.labels = data.labels.map((item, index) => ({ id: index + 1, text: item[0], px: item[1], py: item[2] }));
+      app.arrows = data.arrows.map(([fromX, fromY, toX, toY]) => ({ fromX, fromY, toX, toY }));
+      renderGraphic(key);
+      renderLabels();
+      drawArrows();
+      renderLesson();
+      renderWorksheet();
+      toast(`已載入「${data.title}」教材模板`);
+    }
+
+    function renderGraphic(key) {
+      const color = app.style === "board" ? ["#111827", "#e5e7eb", "#a7f3d0", "#fda4af"] : ["#f8fafc", "#334155", "#4f46e5", "#dc2626"];
+      const grid = app.style === "grid" || key === "parabola";
+      const bg = app.style === "board" ? "#111827" : color[0];
+      const stroke = app.style === "board" ? "#e5e7eb" : color[1];
+      const brand = app.style === "color" ? "#059669" : color[2];
+      const accent = color[3];
+      const label = app.style === "board" ? "#f9fafb" : "#172033";
+      const faint = app.style === "board" ? "#4b5563" : "#cbd5e1";
+      const fillA = app.style === "line" ? "none" : "#dbeafe";
+      const fillB = app.style === "line" ? "none" : "#dcfce7";
+      const fillC = app.style === "line" ? "none" : "#fee2e2";
+      const gridSvg = grid ? `<defs><pattern id="g" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M25 0H0V25" fill="none" stroke="${app.style === "board" ? "#374151" : "#e2e8f0"}" stroke-width="1"/></pattern></defs><rect width="800" height="500" fill="url(#g)"/>` : "";
+      const base = `<rect width="800" height="500" rx="12" fill="${bg}"/>${gridSvg}`;
+      const arrowDef = `<defs><marker id="arrowHead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="${stroke}"/></marker></defs>`;
+      const axis = (x1, y1, x2, y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="2" marker-end="url(#arrowHead)"/>`;
+      const svgText = (x, y, text, size = 18, anchor = "middle") => `<text x="${x}" y="${y}" fill="${label}" font-family="Times New Roman, Noto Sans TC, serif" font-size="${size}" text-anchor="${anchor}">${text}</text>`;
+      const note = (...args) => app.showDiagramText ? svgText(...args) : "";
+      const notes = content => app.showDiagramText ? content : "";
+      const graphics = {
+        pythagoras: `${base}
+          <g transform="translate(190 76)">
+            <polygon points="0,180 0,300 -160,300 -160,180" fill="${fillA}" stroke="#2563eb" stroke-width="2.5"/>
+            <polygon points="0,300 160,300 160,460 0,460" fill="${fillB}" stroke="#059669" stroke-width="2.5"/>
+            <polygon points="0,180 160,300 280,140 120,20" fill="${fillC}" stroke="${accent}" stroke-width="2.5"/>
+            <polygon points="0,180 0,300 160,300" fill="${app.style === "board" ? "#1f2937" : "#fff"}" stroke="${stroke}" stroke-width="3.5"/>
+            <rect x="0" y="280" width="20" height="20" fill="none" stroke="${stroke}" stroke-width="2"/>
+            ${notes(`<text x="-80" y="245" fill="${label}" font-size="20" text-anchor="middle">a² = 9</text>
+            <text x="80" y="385" fill="${label}" font-size="20" text-anchor="middle">b² = 16</text>
+            <text x="140" y="160" fill="${label}" font-size="20" text-anchor="middle">c² = 25</text>
+            <text x="-15" y="245" fill="${label}" font-size="18" text-anchor="end">a=3</text>
+            <text x="80" y="324" fill="${label}" font-size="18" text-anchor="middle">b=4</text>
+            <text x="88" y="228" fill="${label}" font-size="18" text-anchor="middle" transform="rotate(36.87 88 228)">c=5</text>`)}
+          </g>
+          ${note(400, 34, "直角三角形三邊平方面積關係：a² + b² = c²", 22)}`,
+        circle: `${base}${arrowDef}
+          <g transform="translate(400 250)">
+            ${axis(-305,0,305,0)}${axis(0,215,0,-215)}
+            <circle cx="0" cy="0" r="180" fill="none" stroke="${brand}" stroke-width="3.2"/>
+            <line x1="0" y1="0" x2="155.9" y2="-90" stroke="${stroke}" stroke-width="3"/>
+            <line x1="155.9" y1="0" x2="155.9" y2="-90" stroke="${accent}" stroke-width="3" stroke-dasharray="6 5"/>
+            <line x1="0" y1="0" x2="155.9" y2="0" stroke="#2563eb" stroke-width="4"/>
+            <path d="M46 0A46 46 0 0 0 39.8 -23" fill="none" stroke="#f59e0b" stroke-width="4"/>
+            <circle cx="155.9" cy="-90" r="6" fill="${accent}"/>
+            <circle cx="0" cy="0" r="4" fill="${stroke}"/>
+            <line x1="-180" y1="-6" x2="-180" y2="6" stroke="${stroke}" stroke-width="2"/>
+            <line x1="180" y1="-6" x2="180" y2="6" stroke="${stroke}" stroke-width="2"/>
+            <line x1="-6" y1="-180" x2="6" y2="-180" stroke="${stroke}" stroke-width="2"/>
+            <line x1="-6" y1="180" x2="6" y2="180" stroke="${stroke}" stroke-width="2"/>
+            ${note(318,24,"x",20)}${note(20,-220,"y",20)}
+            ${note(0,24,"O",18)}${note(184,24,"1",16)}${note(-184,24,"−1",16)}${note(18,-184,"1",16,"start")}${note(18,188,"−1",16,"start")}
+            ${note(176,-102,"P(cosθ, sinθ)",18,"start")}
+            ${note(88,25,"cosθ",18)}${note(172,-42,"sinθ",18,"start")}${note(64,-11,"θ",20)}
+          </g>
+          ${note(400, 36, "單位圓：x² + y² = 1，P = (cosθ, sinθ)", 22)}`,
+        parabola: `${base}${arrowDef}
+          <g transform="translate(400 260)">
+            ${axis(-335,0,335,0)}${axis(0,205,0,-205)}
+            ${[-3,-2,-1,1,2,3,4].map(v => `<line x1="${v*60}" y1="-5" x2="${v*60}" y2="5" stroke="${stroke}" stroke-width="1.5"/>${note(v*60, 24, String(v), 13)}`).join("")}
+            ${[-4,-3,-2,-1,1,2].map(v => `<line x1="-5" y1="${-v*40}" x2="5" y2="${-v*40}" stroke="${stroke}" stroke-width="1.5"/>${note(-12, -v*40+5, String(v), 13, "end")}`).join("")}
+            <line x1="60" y1="-190" x2="60" y2="185" stroke="${accent}" stroke-width="2" stroke-dasharray="7 5"/>
+            <path d="M-108 -154 C-60 -58 0 120 60 160 C120 120 180 -58 228 -154" fill="none" stroke="${brand}" stroke-width="4"/>
+            <circle cx="60" cy="160" r="6.5" fill="${accent}"/>
+            <circle cx="-60" cy="0" r="5.5" fill="#059669"/><circle cx="180" cy="0" r="5.5" fill="#059669"/>
+            <circle cx="0" cy="120" r="5.5" fill="#d97706"/>
+            ${note(352,24,"x",20)}${note(20,-210,"y",20)}
+            ${note(60,184,"V(1, −4)",17)}${note(92,-172,"x = 1",17,"start")}
+            ${note(238,-142,"y = (x − 1)² − 4",19,"start")}
+            ${note(-64,-12,"(−1,0)",15)}${note(180,-12,"(3,0)",15)}${note(22,108,"(0,−3)",15,"start")}
+          </g>`,
+        normal: `${base}${arrowDef}
+          <g transform="translate(400 380)">
+            ${axis(-350,0,350,0)}
+            <path d="M-120 -96 C-80 -190 -40 -288 0 -300 C40 -288 80 -190 120 -96 L120 0 H-120 Z" fill="#c7d2fe" opacity=".62"/>
+            <path d="M-240 -18 C-210 -28 -170 -48 -120 -96 L120 -96 C170 -48 210 -28 240 -18 L240 0 H-240 Z" fill="#dbeafe" opacity=".42"/>
+            <path d="M-330 -1 C-270 -3 -220 -15 -160 -54 C-105 -90 -75 -245 0 -300 C75 -245 105 -90 160 -54 C220 -15 270 -3 330 -1" fill="none" stroke="${brand}" stroke-width="4"/>
+            ${[-3,-2,-1,0,1,2,3].map(v => `<line x1="${v*80}" y1="0" x2="${v*80}" y2="${v===0 ? -300 : v*v===1 ? -96 : v*v===4 ? -18 : -4}" stroke="${v===0 ? accent : faint}" stroke-width="${v===0 ? 2.2 : 1.5}" stroke-dasharray="${v===0 ? "5 5" : "4 4"}"/>`).join("")}
+            ${app.showDiagramText ? ["μ−3σ","μ−2σ","μ−σ","μ","μ+σ","μ+2σ","μ+3σ"].map((t,i) => `<text x="${(i-3)*80}" y="26" fill="${label}" font-size="14" text-anchor="middle">${t}</text>`).join("") : ""}
+            ${note(350,24,"x",20)}${note(16,-304,"f(x)",20,"start")}
+            ${note(0,-318,"x = μ",18)}${note(0,-60,"68.2%",18)}${note(0,-14,"95.4%",18)}
+          </g>
+          ${note(400, 36, "常態分配：中心 μ，標準差 σ，曲線下面積為 1", 22)}`
+      };
+      qs("#graphic").innerHTML = `<svg viewBox="0 0 800 500" role="img" aria-label="${presets[key].title} 圖形" style="width:100%;height:100%;max-height:500px">${graphics[key]}</svg>`;
+    }
+
+    function renderLabels() {
+      const layer = qs("#labelLayer");
+      layer.innerHTML = "";
+      app.labels.forEach(label => {
+        const el = document.createElement("button");
+        el.className = `label-pill ${app.labelTheme === "light" ? "light" : app.labelTheme === "indigo" ? "indigo" : ""}`;
+        el.style.left = `${label.px}%`;
+        el.style.top = `${label.py}%`;
+        el.innerHTML = `<span class="badge">${label.id}</span><span>${mathText(label.text)}</span>`;
+        el.addEventListener("pointerdown", event => startLabelDrag(event, label, el));
+        el.addEventListener("dblclick", () => editLabel(label.id));
+        layer.appendChild(el);
+      });
+    }
+
+    function resizeCanvas() {
+      const box = qs("#canvasBox");
+      const rect = box.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.round(rect.width * ratio);
+      canvas.height = Math.round(rect.height * ratio);
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      drawArrows();
+    }
+
+    function drawArrow(a, color = "#dc2626") {
+      const box = qs("#canvasBox").getBoundingClientRect();
+      const fromX = a.fromX * box.width / 100;
+      const fromY = a.fromY * box.height / 100;
+      const toX = a.toX * box.width / 100;
+      const toY = a.toY * box.height / 100;
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 3.2;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(toX, toY);
+      ctx.lineTo(toX - 14 * Math.cos(angle - Math.PI / 6), toY - 14 * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(toX - 14 * Math.cos(angle + Math.PI / 6), toY - 14 * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawArrows(preview) {
+      const rect = qs("#canvasBox").getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      app.arrows.forEach(a => drawArrow(a, app.labelTheme === "indigo" ? "#6366f1" : "#dc2626"));
+      if (preview) drawArrow(preview, "#f87171");
+    }
+
+    function startLabelDrag(event, label, el) {
+      if (app.tool !== "select") return;
+      event.preventDefault();
+      el.setPointerCapture(event.pointerId);
+      const box = qs("#canvasBox").getBoundingClientRect();
+      const start = { x: event.clientX, y: event.clientY, px: label.px, py: label.py };
+      const move = e => {
+        const dx = (e.clientX - start.x) / box.width * 100;
+        const dy = (e.clientY - start.y) / box.height * 100;
+        label.px = Math.max(0, Math.min(92, start.px + dx));
+        label.py = Math.max(0, Math.min(92, start.py + dy));
+        el.style.left = `${label.px}%`;
+        el.style.top = `${label.py}%`;
+      };
+      const up = () => {
+        el.removeEventListener("pointermove", move);
+        el.removeEventListener("pointerup", up);
+      };
+      el.addEventListener("pointermove", move);
+      el.addEventListener("pointerup", up);
+    }
+
+    function editLabel(id) {
+      const label = app.labels.find(item => item.id === id);
+      const value = prompt("修改標籤文字，清空可刪除：", label.text);
+      if (value === null) return;
+      if (!value.trim()) app.labels = app.labels.filter(item => item.id !== id);
+      else label.text = value.trim();
+      renderLabels();
+    }
+
+    function renderLesson() {
+      const data = presets[app.preset];
+      qs("#audiencePill").textContent = qs("#audience").value;
+      qs("#lessonContent").innerHTML = `
+        <section><h3>一、教學目標</h3><div class="box"><p>${mathText(data.objective)}</p></div></section>
+        <section><h3>二、核心定理與原理</h3><div class="box"><p>${mathText(data.principle)}</p></div></section>
+        <section><h3>三、課本式圖像閱讀流程</h3><div class="box"><ol>${data.steps.map(step => `<li>${mathText(step)}</li>`).join("")}</ol></div></section>
+        <section><h3>四、常見迷思</h3><div class="box"><p>${mathText(data.misconception)}</p></div></section>
+      `;
+    }
+
+    function renderWorksheet() {
+      const data = presets[app.preset];
+      qs("#worksheetContent").innerHTML = `
+        <div class="box"><strong>隨堂練習卷：${data.title}</strong><p class="hint">班級：______ 座號：______ 姓名：____________</p></div>
+        ${data.questions.map((q, index) => `
+          <article class="question">
+            <h3>${index + 1}. ${q[0]}題</h3>
+            <p>${mathText(q[1])}</p>
+            ${q[2] ? `<div class="options">${q[2].map((o, i) => `<div class="option">(${String.fromCharCode(65+i)}) ${mathText(o)}</div>`).join("")}</div>` : ""}
+            <div class="answer-space"></div>
+          </article>
+        `).join("")}
+      `;
+    }
+
+    function switchTab(key) {
+      qsa(".tab").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === key));
+      qs("#pageCanvas").classList.toggle("hidden", key !== "canvas");
+      qs("#pageLesson").classList.toggle("hidden", key !== "lesson");
+      qs("#pageWorksheet").classList.toggle("hidden", key !== "worksheet");
+      if (key === "canvas") setTimeout(resizeCanvas, 40);
+    }
+
+    function setTool(tool) {
+      app.tool = tool;
+      qsa("[data-tool]").forEach(btn => btn.classList.toggle("soft", btn.dataset.tool === tool));
+      canvas.style.cursor = tool === "arrow" ? "crosshair" : "default";
+      toast(tool === "arrow" ? "已切換為標示箭頭" : "已切換為選取搬移");
+    }
+
+    function installAppHandlers() {
+      window.addEventListener("beforeinstallprompt", event => {
+        event.preventDefault();
+        app.installPrompt = event;
+        qs("#installBtn").hidden = false;
+      });
+      qs("#installBtn").addEventListener("click", async () => {
+        if (!app.installPrompt) return;
+        app.installPrompt.prompt();
+        await app.installPrompt.userChoice;
+        app.installPrompt = null;
+        qs("#installBtn").hidden = true;
+      });
+    }
+
+    function bindEvents() {
+      qsa("[data-preset]").forEach(btn => btn.addEventListener("click", () => setPreset(btn.dataset.preset)));
+      qsa("[data-style]").forEach(btn => btn.addEventListener("click", () => {
+        app.style = btn.dataset.style;
+        qsa("[data-style]").forEach(item => item.setAttribute("aria-pressed", item === btn ? "true" : "false"));
+        renderGraphic(app.preset);
+      }));
+      qsa(".tab").forEach(btn => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
+      qsa("[data-tool]").forEach(btn => btn.addEventListener("click", () => setTool(btn.dataset.tool)));
+      qs("#generateBtn").addEventListener("click", () => {
+        const value = qs("#subject").value;
+        const match = Object.entries(presets).find(([, p]) => value.includes(p.title.slice(0, 2)));
+        setPreset(match ? match[0] : app.preset);
+      });
+      qs("#audience").addEventListener("change", renderLesson);
+      qs("#addLabelBtn").addEventListener("click", () => {
+        const text = prompt("請輸入新標籤：", "$x^2+y^2=1$");
+        if (!text) return;
+        app.labels.push({ id: Math.max(0, ...app.labels.map(l => l.id)) + 1, text, px: 42, py: 42 });
+        renderLabels();
+      });
+      qs("#clearBtn").addEventListener("click", () => { app.arrows = []; drawArrows(); });
+      qs("#themeBtn").addEventListener("click", () => {
+        const themes = ["dark", "light", "indigo"];
+        app.labelTheme = themes[(themes.indexOf(app.labelTheme) + 1) % themes.length];
+        qs("#themeBtn").textContent = `標籤配色：${app.labelTheme === "dark" ? "深藍" : app.labelTheme === "light" ? "灰白" : "靛藍"}`;
+        renderLabels();
+        drawArrows();
+      });
+      qs("#diagramTextBtn").addEventListener("click", () => {
+        app.showDiagramText = !app.showDiagramText;
+        qs("#diagramTextBtn").textContent = `底圖文字：${app.showDiagramText ? "開" : "關"}`;
+        renderGraphic(app.preset);
+        toast(app.showDiagramText ? "已顯示底圖內建文字" : "已隱藏底圖干擾文字");
+      });
+      qs("#copyStateBtn").addEventListener("click", async () => {
+        await navigator.clipboard.writeText(JSON.stringify({ preset: app.preset, labels: app.labels, arrows: app.arrows }, null, 2));
+        toast("教材 JSON 已複製");
+      });
+      qs("#printBtn").addEventListener("click", () => window.print());
+      qs("#exportPngBtn").addEventListener("click", exportCanvasPng);
+      window.addEventListener("resize", resizeCanvas);
+
+      canvas.addEventListener("pointerdown", event => {
+        if (app.tool !== "arrow") return;
+        const rect = canvas.getBoundingClientRect();
+        app.drawing = { fromX: (event.clientX - rect.left) / rect.width * 100, fromY: (event.clientY - rect.top) / rect.height * 100 };
+      });
+      canvas.addEventListener("pointermove", event => {
+        if (!app.drawing) return;
+        const rect = canvas.getBoundingClientRect();
+        drawArrows({ ...app.drawing, toX: (event.clientX - rect.left) / rect.width * 100, toY: (event.clientY - rect.top) / rect.height * 100 });
+      });
+      canvas.addEventListener("pointerup", event => {
+        if (!app.drawing) return;
+        const rect = canvas.getBoundingClientRect();
+        const arrow = { ...app.drawing, toX: (event.clientX - rect.left) / rect.width * 100, toY: (event.clientY - rect.top) / rect.height * 100 };
+        app.arrows.push(arrow);
+        app.drawing = null;
+        drawArrows();
+      });
+    }
+
+    async function registerServiceWorker() {
+      if ("serviceWorker" in navigator) {
+        try {
+          await navigator.serviceWorker.register("./service-worker.js");
+        } catch (error) {
+          console.warn("Service worker registration failed", error);
+        }
+      }
+    }
+
+    async function exportCanvasPng() {
+      const svg = qs("#graphic svg");
+      const box = qs("#canvasBox").getBoundingClientRect();
+      const scale = 2;
+      const output = document.createElement("canvas");
+      output.width = Math.round(box.width * scale);
+      output.height = Math.round(box.height * scale);
+      const out = output.getContext("2d");
+      out.scale(scale, scale);
+      out.fillStyle = "#ffffff";
+      out.fillRect(0, 0, box.width, box.height);
+
+      if (svg) {
+        const source = new XMLSerializer().serializeToString(svg);
+        const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = url;
+        });
+        const size = fitRect(800, 500, box.width - 36, box.height - 36);
+        out.drawImage(img, 18 + size.x, 18 + size.y, size.width, size.height);
+        URL.revokeObjectURL(url);
+      }
+
+      app.arrows.forEach(arrow => drawArrowTo(out, arrow, box.width, box.height, app.labelTheme === "indigo" ? "#6366f1" : "#dc2626"));
+      app.labels.forEach(label => drawLabelTo(out, label, box.width, box.height));
+
+      const link = document.createElement("a");
+      link.download = `${presets[app.preset].title}-教材圖.png`;
+      link.href = output.toDataURL("image/png");
+      link.click();
+      toast("PNG 已匯出");
+    }
+
+    function fitRect(sourceW, sourceH, targetW, targetH) {
+      const ratio = Math.min(targetW / sourceW, targetH / sourceH);
+      const width = sourceW * ratio;
+      const height = sourceH * ratio;
+      return { width, height, x: (targetW - width) / 2, y: (targetH - height) / 2 };
+    }
+
+    function drawArrowTo(target, arrow, width, height, color) {
+      const fromX = arrow.fromX * width / 100;
+      const fromY = arrow.fromY * height / 100;
+      const toX = arrow.toX * width / 100;
+      const toY = arrow.toY * height / 100;
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+      target.save();
+      target.strokeStyle = color;
+      target.fillStyle = color;
+      target.lineWidth = 3.2;
+      target.lineCap = "round";
+      target.beginPath();
+      target.moveTo(fromX, fromY);
+      target.lineTo(toX, toY);
+      target.stroke();
+      target.beginPath();
+      target.moveTo(toX, toY);
+      target.lineTo(toX - 14 * Math.cos(angle - Math.PI / 6), toY - 14 * Math.sin(angle - Math.PI / 6));
+      target.lineTo(toX - 14 * Math.cos(angle + Math.PI / 6), toY - 14 * Math.sin(angle + Math.PI / 6));
+      target.closePath();
+      target.fill();
+      target.restore();
+    }
+
+    function drawLabelTo(target, label, width, height) {
+      const text = `${label.id}. ${plainMath(label.text)}`;
+      const x = label.px * width / 100;
+      const y = label.py * height / 100;
+      target.save();
+      target.font = "700 13px system-ui, sans-serif";
+      const metrics = target.measureText(text);
+      const pillW = Math.min(Math.max(metrics.width + 24, 72), 340);
+      const pillH = 30;
+      target.fillStyle = app.labelTheme === "light" ? "rgba(255,255,255,.96)" : app.labelTheme === "indigo" ? "rgba(49,46,129,.96)" : "rgba(15,23,42,.94)";
+      target.strokeStyle = app.labelTheme === "light" ? "#cbd5e1" : app.labelTheme === "indigo" ? "#818cf8" : "#334155";
+      roundRect(target, x, y, pillW, pillH, 8);
+      target.fill();
+      target.stroke();
+      target.fillStyle = app.labelTheme === "light" ? "#172033" : "#ffffff";
+      target.fillText(text, x + 12, y + 20);
+      target.restore();
+    }
+
+    function roundRect(target, x, y, width, height, radius) {
+      target.beginPath();
+      target.moveTo(x + radius, y);
+      target.arcTo(x + width, y, x + width, y + height, radius);
+      target.arcTo(x + width, y + height, x, y + height, radius);
+      target.arcTo(x, y + height, x, y, radius);
+      target.arcTo(x, y, x + width, y, radius);
+      target.closePath();
+    }
+
+    bindEvents();
+    installAppHandlers();
+    setPreset("pythagoras");
+    resizeCanvas();
+    registerServiceWorker();
+  </script>
+</body>
+</html>
