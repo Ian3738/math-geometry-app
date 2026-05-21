@@ -1,4 +1,4 @@
-const CACHE_NAME = "math-geometry-app-v3";
+const CACHE_NAME = "math-geometry-app-v4";
 const ASSETS = [
   "./",
   "./index.html",

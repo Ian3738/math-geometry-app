@@ -372,6 +372,7 @@
           </div>
           <div class="export-actions">
             <button class="btn soft" id="exportPngBtn">匯出 PNG</button>
+            <button class="btn soft" id="exportSvgBtn">匯出 SVG</button>
             <button class="btn soft" id="copyStateBtn">複製教材 JSON</button>
           </div>
         </div>
@@ -381,14 +382,17 @@
             <div class="toolbar">
               <small>繪圖工具</small>
               <button class="btn soft" data-tool="select">選取/搬移</button>
+              <button class="btn" data-tool="point">新增點</button>
+              <button class="btn" data-tool="segment">線段</button>
+              <button class="btn" data-tool="circle">圓</button>
               <button class="btn" data-tool="arrow">標示箭頭</button>
               <button class="btn" id="addLabelBtn">新增標籤</button>
-              <button class="btn danger" id="clearBtn">清除輔助線</button>
+              <button class="btn danger" id="clearBtn">清除手繪物件</button>
             </div>
             <button class="btn" id="themeBtn">標籤配色：深藍</button>
             <button class="btn" id="diagramTextBtn">底圖文字：關</button>
           </div>
-          <p class="hint">提示：拖曳標籤可調整位置，雙擊標籤可修改文字；切換到「標示箭頭」後可在圖上拖曳畫出輔助線。</p>
+          <p class="hint">提示：在「選取/搬移」模式可拖曳點、線段端點、圓心與圓周控制點；也可拖曳標籤，雙擊標籤修改文字。SVG 適合交給講義、論文、簡報與向量編輯軟體。</p>
           <div class="canvas-box" id="canvasBox">
             <div id="graphic"></div>
             <canvas id="drawLayer"></canvas>
@@ -427,10 +431,13 @@
       labelTheme: "dark",
       labels: [],
       arrows: [],
+      objects: [],
       dragLabel: null,
       drawing: null,
       installPrompt: null,
-      showDiagramText: false
+      showDiagramText: false,
+      activeHandle: null,
+      pendingObject: null
     };
 
     const presets = {
@@ -579,6 +586,8 @@
       qs("#subject").value = data.title;
       app.labels = data.labels.map((item, index) => ({ id: index + 1, text: item[0], px: item[1], py: item[2] }));
       app.arrows = data.arrows.map(([fromX, fromY, toX, toY]) => ({ fromX, fromY, toX, toY }));
+      app.objects = [];
+      app.pendingObject = null;
       renderGraphic(key);
       renderLabels();
       drawArrows();
@@ -725,11 +734,98 @@
       ctx.restore();
     }
 
+    function drawEditableObject(object) {
+      const box = qs("#canvasBox").getBoundingClientRect();
+      ctx.save();
+      ctx.lineWidth = 2.4;
+      ctx.strokeStyle = object.color || "#111827";
+      ctx.fillStyle = object.color || "#111827";
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      if (object.type === "point") {
+        const p = pctToPoint(object.x, object.y, box.width, box.height);
+        drawPointMarker(ctx, p.x, p.y, object.name || "");
+      }
+      if (object.type === "segment") {
+        const a = pctToPoint(object.x1, object.y1, box.width, box.height);
+        const b = pctToPoint(object.x2, object.y2, box.width, box.height);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        drawHandle(ctx, a.x, a.y);
+        drawHandle(ctx, b.x, b.y);
+      }
+      if (object.type === "circle") {
+        const c = pctToPoint(object.cx, object.cy, box.width, box.height);
+        const edge = pctToPoint(object.rx, object.ry, box.width, box.height);
+        const r = Math.hypot(edge.x - c.x, edge.y - c.y);
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+        drawHandle(ctx, c.x, c.y);
+        drawHandle(ctx, edge.x, edge.y);
+      }
+      ctx.restore();
+    }
+
+    function drawPointMarker(target, x, y, name = "") {
+      target.save();
+      target.beginPath();
+      target.arc(x, y, 5.5, 0, Math.PI * 2);
+      target.fill();
+      target.strokeStyle = "#ffffff";
+      target.lineWidth = 2;
+      target.stroke();
+      if (name) {
+        target.font = "700 14px Times New Roman, serif";
+        target.fillText(name, x + 9, y - 9);
+      }
+      target.restore();
+    }
+
+    function drawHandle(target, x, y) {
+      target.save();
+      target.fillStyle = "#ffffff";
+      target.strokeStyle = "#111827";
+      target.lineWidth = 2;
+      target.beginPath();
+      target.arc(x, y, 5, 0, Math.PI * 2);
+      target.fill();
+      target.stroke();
+      target.restore();
+    }
+
     function drawArrows(preview) {
       const rect = qs("#canvasBox").getBoundingClientRect();
       ctx.clearRect(0, 0, rect.width, rect.height);
+      app.objects.forEach(drawEditableObject);
       app.arrows.forEach(a => drawArrow(a, app.labelTheme === "indigo" ? "#6366f1" : "#dc2626"));
       if (preview) drawArrow(preview, "#f87171");
+      if (app.pendingObject) drawPendingObject(app.pendingObject);
+    }
+
+    function drawPendingObject(pending) {
+      if (!pending.preview) return;
+      ctx.save();
+      ctx.setLineDash([6, 5]);
+      ctx.strokeStyle = "#2563eb";
+      ctx.lineWidth = 2.2;
+      const box = qs("#canvasBox").getBoundingClientRect();
+      const a = pctToPoint(pending.x, pending.y, box.width, box.height);
+      const b = pctToPoint(pending.preview.x, pending.preview.y, box.width, box.height);
+      if (pending.type === "segment") {
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+      if (pending.type === "circle") {
+        ctx.beginPath();
+        ctx.arc(a.x, a.y, Math.hypot(b.x - a.x, b.y - a.y), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
     }
 
     function startLabelDrag(event, label, el) {
@@ -761,6 +857,149 @@
       if (!value.trim()) app.labels = app.labels.filter(item => item.id !== id);
       else label.text = value.trim();
       renderLabels();
+    }
+
+    function pctToPoint(px, py, width, height) {
+      return { x: px * width / 100, y: py * height / 100 };
+    }
+
+    function eventToPct(event) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(100, (event.clientX - rect.left) / rect.width * 100)),
+        y: Math.max(0, Math.min(100, (event.clientY - rect.top) / rect.height * 100))
+      };
+    }
+
+    function addPointAt(x, y) {
+      const name = String.fromCharCode(65 + app.objects.filter(object => object.type === "point").length);
+      app.objects.push({ type: "point", x, y, name, color: "#111827" });
+      drawArrows();
+      toast(`已新增點 ${name}`);
+    }
+
+    function findNearestHandle(x, y) {
+      const box = qs("#canvasBox").getBoundingClientRect();
+      const hitRadius = 18;
+      const handles = [];
+      app.objects.forEach((object, objectIndex) => {
+        if (object.type === "point") handles.push({ objectIndex, handle: "point", ...pctToPoint(object.x, object.y, box.width, box.height) });
+        if (object.type === "segment") {
+          handles.push({ objectIndex, handle: "a", ...pctToPoint(object.x1, object.y1, box.width, box.height) });
+          handles.push({ objectIndex, handle: "b", ...pctToPoint(object.x2, object.y2, box.width, box.height) });
+        }
+        if (object.type === "circle") {
+          handles.push({ objectIndex, handle: "center", ...pctToPoint(object.cx, object.cy, box.width, box.height) });
+          handles.push({ objectIndex, handle: "radius", ...pctToPoint(object.rx, object.ry, box.width, box.height) });
+        }
+      });
+      let nearest = null;
+      handles.forEach(handle => {
+        const distance = Math.hypot(handle.x - x, handle.y - y);
+        if (distance <= hitRadius && (!nearest || distance < nearest.distance)) nearest = { ...handle, distance };
+      });
+      return nearest;
+    }
+
+    function updateHandle(active, pct) {
+      const object = app.objects[active.objectIndex];
+      if (!object) return;
+      if (object.type === "point") {
+        object.x = pct.x;
+        object.y = pct.y;
+      }
+      if (object.type === "segment") {
+        if (active.handle === "a") {
+          object.x1 = pct.x;
+          object.y1 = pct.y;
+        } else {
+          object.x2 = pct.x;
+          object.y2 = pct.y;
+        }
+      }
+      if (object.type === "circle") {
+        if (active.handle === "center") {
+          const dx = pct.x - object.cx;
+          const dy = pct.y - object.cy;
+          object.cx = pct.x;
+          object.cy = pct.y;
+          object.rx = Math.max(0, Math.min(100, object.rx + dx));
+          object.ry = Math.max(0, Math.min(100, object.ry + dy));
+        } else {
+          object.rx = pct.x;
+          object.ry = pct.y;
+        }
+      }
+      drawArrows();
+    }
+
+    function handleCanvasDown(event) {
+      const pct = eventToPct(event);
+      const rect = canvas.getBoundingClientRect();
+      if (app.tool === "select") {
+        const nearest = findNearestHandle(event.clientX - rect.left, event.clientY - rect.top);
+        if (nearest) {
+          app.activeHandle = nearest;
+          canvas.setPointerCapture(event.pointerId);
+        }
+        return;
+      }
+      if (app.tool === "point") {
+        addPointAt(pct.x, pct.y);
+        return;
+      }
+      if (app.tool === "segment" || app.tool === "circle") {
+        app.pendingObject = { type: app.tool, x: pct.x, y: pct.y, preview: pct };
+        canvas.setPointerCapture(event.pointerId);
+        drawArrows();
+        return;
+      }
+      if (app.tool === "arrow") {
+        app.drawing = { fromX: pct.x, fromY: pct.y };
+        canvas.setPointerCapture(event.pointerId);
+      }
+    }
+
+    function handleCanvasMove(event) {
+      const pct = eventToPct(event);
+      if (app.activeHandle) {
+        updateHandle(app.activeHandle, pct);
+        return;
+      }
+      if (app.pendingObject) {
+        app.pendingObject.preview = pct;
+        drawArrows();
+        return;
+      }
+      if (app.drawing) drawArrows({ ...app.drawing, toX: pct.x, toY: pct.y });
+    }
+
+    function handleCanvasUp(event) {
+      const pct = eventToPct(event);
+      if (app.activeHandle) {
+        updateHandle(app.activeHandle, pct);
+        app.activeHandle = null;
+        return;
+      }
+      if (app.pendingObject) {
+        const start = app.pendingObject;
+        const distance = Math.hypot(pct.x - start.x, pct.y - start.y);
+        if (distance > 1.5 && start.type === "segment") {
+          app.objects.push({ type: "segment", x1: start.x, y1: start.y, x2: pct.x, y2: pct.y, color: "#111827" });
+        }
+        if (distance > 1.5 && start.type === "circle") {
+          app.objects.push({ type: "circle", cx: start.x, cy: start.y, rx: pct.x, ry: pct.y, color: "#111827" });
+        }
+        app.pendingObject = null;
+        drawArrows();
+        return;
+      }
+      if (app.drawing) {
+        const distance = Math.hypot(pct.x - app.drawing.fromX, pct.y - app.drawing.fromY);
+        if (distance > 1.5) app.arrows.push({ ...app.drawing, toX: pct.x, toY: pct.y });
+        app.drawing = null;
+        drawArrows();
+      }
     }
 
     function renderLesson() {
@@ -800,8 +1039,9 @@
     function setTool(tool) {
       app.tool = tool;
       qsa("[data-tool]").forEach(btn => btn.classList.toggle("soft", btn.dataset.tool === tool));
-      canvas.style.cursor = tool === "arrow" ? "crosshair" : "default";
-      toast(tool === "arrow" ? "已切換為標示箭頭" : "已切換為選取搬移");
+      canvas.style.cursor = tool === "select" ? "grab" : "crosshair";
+      const names = { select: "選取搬移", point: "新增點", segment: "線段", circle: "圓", arrow: "標示箭頭" };
+      toast(`已切換為${names[tool]}`);
     }
 
     function installAppHandlers() {
@@ -840,7 +1080,7 @@
         app.labels.push({ id: Math.max(0, ...app.labels.map(l => l.id)) + 1, text, px: 42, py: 42 });
         renderLabels();
       });
-      qs("#clearBtn").addEventListener("click", () => { app.arrows = []; drawArrows(); });
+      qs("#clearBtn").addEventListener("click", () => { app.arrows = []; app.objects = []; app.pendingObject = null; drawArrows(); toast("已清除手繪物件"); });
       qs("#themeBtn").addEventListener("click", () => {
         const themes = ["dark", "light", "indigo"];
         app.labelTheme = themes[(themes.indexOf(app.labelTheme) + 1) % themes.length];
@@ -855,31 +1095,18 @@
         toast(app.showDiagramText ? "已顯示底圖內建文字" : "已隱藏底圖干擾文字");
       });
       qs("#copyStateBtn").addEventListener("click", async () => {
-        await navigator.clipboard.writeText(JSON.stringify({ preset: app.preset, labels: app.labels, arrows: app.arrows }, null, 2));
+        await navigator.clipboard.writeText(JSON.stringify({ preset: app.preset, labels: app.labels, arrows: app.arrows, objects: app.objects }, null, 2));
         toast("教材 JSON 已複製");
       });
       qs("#printBtn").addEventListener("click", () => window.print());
       qs("#exportPngBtn").addEventListener("click", exportCanvasPng);
+      qs("#exportSvgBtn").addEventListener("click", exportCanvasSvg);
       window.addEventListener("resize", resizeCanvas);
 
-      canvas.addEventListener("pointerdown", event => {
-        if (app.tool !== "arrow") return;
-        const rect = canvas.getBoundingClientRect();
-        app.drawing = { fromX: (event.clientX - rect.left) / rect.width * 100, fromY: (event.clientY - rect.top) / rect.height * 100 };
-      });
-      canvas.addEventListener("pointermove", event => {
-        if (!app.drawing) return;
-        const rect = canvas.getBoundingClientRect();
-        drawArrows({ ...app.drawing, toX: (event.clientX - rect.left) / rect.width * 100, toY: (event.clientY - rect.top) / rect.height * 100 });
-      });
-      canvas.addEventListener("pointerup", event => {
-        if (!app.drawing) return;
-        const rect = canvas.getBoundingClientRect();
-        const arrow = { ...app.drawing, toX: (event.clientX - rect.left) / rect.width * 100, toY: (event.clientY - rect.top) / rect.height * 100 };
-        app.arrows.push(arrow);
-        app.drawing = null;
-        drawArrows();
-      });
+      canvas.addEventListener("pointerdown", handleCanvasDown);
+      canvas.addEventListener("pointermove", handleCanvasMove);
+      canvas.addEventListener("pointerup", handleCanvasUp);
+      canvas.addEventListener("pointercancel", () => { app.activeHandle = null; app.pendingObject = null; app.drawing = null; drawArrows(); });
     }
 
     async function registerServiceWorker() {
@@ -919,6 +1146,7 @@
         URL.revokeObjectURL(url);
       }
 
+      app.objects.forEach(object => drawObjectTo(out, object, box.width, box.height));
       app.arrows.forEach(arrow => drawArrowTo(out, arrow, box.width, box.height, app.labelTheme === "indigo" ? "#6366f1" : "#dc2626"));
       app.labels.forEach(label => drawLabelTo(out, label, box.width, box.height));
 
@@ -927,6 +1155,22 @@
       link.href = output.toDataURL("image/png");
       link.click();
       toast("PNG 已匯出");
+    }
+
+    function exportCanvasSvg() {
+      const svg = qs("#graphic svg");
+      const box = qs("#canvasBox").getBoundingClientRect();
+      const source = svg ? new XMLSerializer().serializeToString(svg) : "";
+      const inner = source.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
+      const overlay = [
+        `<g id="editable-objects">${app.objects.map(objectToSvg).join("")}</g>`,
+        `<g id="arrows">${app.arrows.map(arrowToSvg).join("")}</g>`,
+        `<g id="labels">${app.labels.map(labelToSvg).join("")}</g>`
+      ].join("");
+      const output = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(box.width)}" height="${Math.round(box.height)}" viewBox="0 0 100 100" role="img" aria-label="${escapeHTML(presets[app.preset].title)} 專業數學圖檔">\n  <defs>\n    <marker id="exportArrow" markerWidth="4" markerHeight="4" refX="3.5" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4 Z" fill="#dc2626"/></marker>\n  </defs>\n  <g transform="scale(0.125 0.2)">${inner}</g>\n  ${overlay}\n</svg>`;
+      const blob = new Blob([output], { type: "image/svg+xml;charset=utf-8" });
+      downloadBlob(blob, `${presets[app.preset].title}-專業數學圖.svg`);
+      toast("SVG 已匯出");
     }
 
     function fitRect(sourceW, sourceH, targetW, targetH) {
@@ -960,6 +1204,35 @@
       target.restore();
     }
 
+    function drawObjectTo(target, object, width, height) {
+      target.save();
+      target.strokeStyle = object.color || "#111827";
+      target.fillStyle = object.color || "#111827";
+      target.lineWidth = 2.4;
+      target.lineCap = "round";
+      target.lineJoin = "round";
+      if (object.type === "point") {
+        const p = pctToPoint(object.x, object.y, width, height);
+        drawPointMarker(target, p.x, p.y, object.name || "");
+      }
+      if (object.type === "segment") {
+        const a = pctToPoint(object.x1, object.y1, width, height);
+        const b = pctToPoint(object.x2, object.y2, width, height);
+        target.beginPath();
+        target.moveTo(a.x, a.y);
+        target.lineTo(b.x, b.y);
+        target.stroke();
+      }
+      if (object.type === "circle") {
+        const c = pctToPoint(object.cx, object.cy, width, height);
+        const edge = pctToPoint(object.rx, object.ry, width, height);
+        target.beginPath();
+        target.arc(c.x, c.y, Math.hypot(edge.x - c.x, edge.y - c.y), 0, Math.PI * 2);
+        target.stroke();
+      }
+      target.restore();
+    }
+
     function drawLabelTo(target, label, width, height) {
       const text = `${label.id}. ${plainMath(label.text)}`;
       const x = label.px * width / 100;
@@ -987,6 +1260,43 @@
       target.arcTo(x, y + height, x, y, radius);
       target.arcTo(x, y, x + width, y, radius);
       target.closePath();
+    }
+
+    function objectToSvg(object) {
+      const color = object.color || "#111827";
+      if (object.type === "point") {
+        return `<circle cx="${object.x}" cy="${object.y}" r="0.9" fill="${color}"/><text x="${object.x + 1.6}" y="${object.y - 1.4}" font-family="Times New Roman, serif" font-size="3" font-weight="700" fill="${color}">${escapeHTML(object.name || "")}</text>`;
+      }
+      if (object.type === "segment") {
+        return `<line x1="${object.x1}" y1="${object.y1}" x2="${object.x2}" y2="${object.y2}" stroke="${color}" stroke-width="0.55" stroke-linecap="round"/>`;
+      }
+      if (object.type === "circle") {
+        const r = Math.hypot(object.rx - object.cx, object.ry - object.cy);
+        return `<circle cx="${object.cx}" cy="${object.cy}" r="${r}" fill="none" stroke="${color}" stroke-width="0.55"/>`;
+      }
+      return "";
+    }
+
+    function arrowToSvg(arrow) {
+      return `<line x1="${arrow.fromX}" y1="${arrow.fromY}" x2="${arrow.toX}" y2="${arrow.toY}" stroke="#dc2626" stroke-width="0.7" stroke-linecap="round" marker-end="url(#exportArrow)"/>`;
+    }
+
+    function labelToSvg(label) {
+      const text = escapeHTML(plainMath(label.text));
+      const width = Math.min(Math.max(text.length * 1.8 + 7, 14), 46);
+      const fill = app.labelTheme === "light" ? "#ffffff" : app.labelTheme === "indigo" ? "#312e81" : "#0f172a";
+      const stroke = app.labelTheme === "light" ? "#cbd5e1" : app.labelTheme === "indigo" ? "#818cf8" : "#334155";
+      const color = app.labelTheme === "light" ? "#172033" : "#ffffff";
+      return `<g><rect x="${label.px}" y="${label.py}" width="${width}" height="5.8" rx="1.4" fill="${fill}" stroke="${stroke}" stroke-width="0.25"/><text x="${label.px + 1.8}" y="${label.py + 3.9}" fill="${color}" font-family="Noto Sans TC, system-ui, sans-serif" font-size="2.8" font-weight="700">${label.id}. ${text}</text></g>`;
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
     }
 
     bindEvents();
