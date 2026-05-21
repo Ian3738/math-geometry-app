@@ -360,6 +360,20 @@
           <textarea id="notes" placeholder="例如：請標出 a² + b² = c² 的面積關係，並使用 3-4-5 直角三角形。"></textarea>
         </div>
 
+        <div class="field">
+          <label for="templateName">自訂範本</label>
+          <input id="templateName" placeholder="輸入範本名稱，例如：我的單位圓講義">
+          <div class="export-actions">
+            <button class="btn soft" id="saveTemplateBtn">儲存目前範本</button>
+            <button class="btn danger" id="deleteTemplateBtn">刪除範本</button>
+          </div>
+          <select id="customTemplateSelect" aria-label="已儲存的自訂範本">
+            <option value="">尚未選擇自訂範本</option>
+          </select>
+          <button class="btn" id="loadTemplateBtn">載入選取範本</button>
+          <p class="hint">範本會保存目前底圖類型、風格、標籤位置、箭頭、點、線段、圓與底圖文字開關。</p>
+        </div>
+
         <button class="btn primary" id="generateBtn">生成教材</button>
       </aside>
 
@@ -437,8 +451,11 @@
       installPrompt: null,
       showDiagramText: false,
       activeHandle: null,
-      pendingObject: null
+      pendingObject: null,
+      customTemplates: {}
     };
+
+    const TEMPLATE_STORAGE_KEY = "math_geometry_custom_templates_v1";
 
     const presets = {
       pythagoras: {
@@ -594,6 +611,100 @@
       renderLesson();
       renderWorksheet();
       toast(`已載入「${data.title}」教材模板`);
+    }
+
+    function getCurrentTemplateState(name) {
+      return {
+        name,
+        preset: app.preset,
+        style: app.style,
+        labelTheme: app.labelTheme,
+        showDiagramText: app.showDiagramText,
+        audience: qs("#audience").value,
+        notes: qs("#notes").value,
+        labels: structuredClone(app.labels),
+        arrows: structuredClone(app.arrows),
+        objects: structuredClone(app.objects)
+      };
+    }
+
+    function applyTemplateState(template) {
+      if (!template || !presets[template.preset]) return;
+      app.preset = template.preset;
+      app.style = template.style || "line";
+      app.labelTheme = template.labelTheme || "dark";
+      app.showDiagramText = !!template.showDiagramText;
+      app.labels = structuredClone(template.labels || []);
+      app.arrows = structuredClone(template.arrows || []);
+      app.objects = structuredClone(template.objects || []);
+      app.pendingObject = null;
+      app.activeHandle = null;
+      qs("#subject").value = presets[app.preset].title;
+      qs("#audience").value = template.audience || "國民中學";
+      qs("#notes").value = template.notes || "";
+      qs("#themeBtn").textContent = `標籤配色：${app.labelTheme === "dark" ? "深藍" : app.labelTheme === "light" ? "灰白" : "靛藍"}`;
+      qs("#diagramTextBtn").textContent = `底圖文字：${app.showDiagramText ? "開" : "關"}`;
+      qsa("[data-style]").forEach(item => item.setAttribute("aria-pressed", item.dataset.style === app.style ? "true" : "false"));
+      renderGraphic(app.preset);
+      renderLabels();
+      drawArrows();
+      renderLesson();
+      renderWorksheet();
+    }
+
+    function loadCustomTemplates() {
+      try {
+        app.customTemplates = JSON.parse(localStorage.getItem(TEMPLATE_STORAGE_KEY) || "{}");
+      } catch {
+        app.customTemplates = {};
+      }
+      renderCustomTemplateSelect();
+    }
+
+    function persistCustomTemplates() {
+      localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(app.customTemplates));
+      renderCustomTemplateSelect();
+    }
+
+    function renderCustomTemplateSelect() {
+      const select = qs("#customTemplateSelect");
+      const selected = select.value;
+      const names = Object.keys(app.customTemplates).sort((a, b) => a.localeCompare(b, "zh-Hant"));
+      select.innerHTML = `<option value="">${names.length ? "請選擇自訂範本" : "尚未儲存自訂範本"}</option>` + names.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join("");
+      if (app.customTemplates[selected]) select.value = selected;
+    }
+
+    function saveCurrentTemplate() {
+      const name = qs("#templateName").value.trim() || prompt("請輸入範本名稱：", presets[app.preset].title);
+      if (!name) return;
+      app.customTemplates[name] = getCurrentTemplateState(name);
+      persistCustomTemplates();
+      qs("#templateName").value = name;
+      qs("#customTemplateSelect").value = name;
+      toast(`已儲存自訂範本「${name}」`);
+    }
+
+    function loadSelectedTemplate() {
+      const name = qs("#customTemplateSelect").value;
+      if (!name || !app.customTemplates[name]) {
+        toast("請先選擇要載入的自訂範本");
+        return;
+      }
+      applyTemplateState(app.customTemplates[name]);
+      qs("#templateName").value = name;
+      toast(`已載入自訂範本「${name}」`);
+    }
+
+    function deleteSelectedTemplate() {
+      const name = qs("#customTemplateSelect").value;
+      if (!name || !app.customTemplates[name]) {
+        toast("請先選擇要刪除的自訂範本");
+        return;
+      }
+      delete app.customTemplates[name];
+      persistCustomTemplates();
+      qs("#templateName").value = "";
+      toast(`已刪除自訂範本「${name}」`);
     }
 
     function renderGraphic(key) {
@@ -1073,6 +1184,12 @@
         const match = Object.entries(presets).find(([, p]) => value.includes(p.title.slice(0, 2)));
         setPreset(match ? match[0] : app.preset);
       });
+      qs("#saveTemplateBtn").addEventListener("click", saveCurrentTemplate);
+      qs("#loadTemplateBtn").addEventListener("click", loadSelectedTemplate);
+      qs("#deleteTemplateBtn").addEventListener("click", deleteSelectedTemplate);
+      qs("#customTemplateSelect").addEventListener("change", event => {
+        qs("#templateName").value = event.target.value;
+      });
       qs("#audience").addEventListener("change", renderLesson);
       qs("#addLabelBtn").addEventListener("click", () => {
         const text = prompt("請輸入新標籤：", "$x^2+y^2=1$");
@@ -1301,6 +1418,7 @@
 
     bindEvents();
     installAppHandlers();
+    loadCustomTemplates();
     setPreset("pythagoras");
     resizeCanvas();
     registerServiceWorker();
